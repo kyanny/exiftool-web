@@ -13,11 +13,17 @@ Usage:
   curl #{scheme}://#{host}#{path} -F file=@/path/to/image.jpg
 
 Params:
-  file: image file data.
-  tags: comma-separated ExifTool tag names. See also https://exiftool.org/TagNames/
+  file:     image file data.
+  tags:     comma-separated ExifTool tag names. See also https://exiftool.org/TagNames/
+  template: ERB template for output. Tag data is accessible via t.TAG_NAME. e.g. <%= t.FNumber %>
 
 Example:
-  curl #{scheme}://#{host}#{path} -F file=@/path/to/image.jpg -F tags="Make,Model,LensID,ISO,FocalLength,ExposureShift,FNumber,ExposureTime"
+  curl #{scheme}://#{host}#{path} -F file=@/path/to/image.jpg \
+    -F tags="Make,Model,LensID,ISO,FocalLength,ExposureShift,FNumber,ExposureTime"
+
+  curl #{scheme}://#{host}#{path} -F file=@/path/to/image.jpg \
+    -F tags="Make,Model,LensID,ISO,FocalLength,ExposureShift,FNumber,ExposureTime" \
+    -F template=' <table><th colspan="5"><td><%= t.Make %>@<%= t.Model %></td></th><th colspan="5"><td><%= t.LensID %></td></th><th><td>ISO <%= t.ISO %></td><td><%= t.FocalLength %> mm</td><td><%= t.ExposureShift %> ev</td><td>f<%= t.FNumber %></td><td><%= t.ExposureTime %> s</td></th></table>'
 
 USAGE
 
@@ -37,28 +43,41 @@ end
 post "/" do
   exiftool = "./Image-ExifTool-12.49/exiftool -s"
   file_path = "-"
-  tags = params[:tags].to_s.split(",").map(&:strip).select{ _1.match?(/\A\w*\Z/) }.map{ _1.insert(0, "-") }.join(" ")
+  tags = params[:tags].to_s.split(",").map(&:strip).select{ _1.match?(/\A\w*\Z/) }
+  tags_args = tags.map{ "-#{_1}" }.join(" ")
+  template = params[:template]
   stdin_data = params[:file][:tempfile].read
-  cmd = "#{exiftool} #{tags} #{file_path}"
+  cmd = "#{exiftool} #{tags_args} #{file_path}"
 
-  respond_to do |format|
-    format.txt do
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      out
+  if template.nil?
+    respond_to do |format|
+      format.txt do
+        out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+        out
+      end
+      format.html do
+        cmd += " -h"
+        out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+        erb :index, locals: { out: out }
+      end
+      format.json do
+        cmd += " -j"
+        out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+        out
+      end
+      format.on("*/*") do
+        out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+        out
+      end
     end
-    format.html do
-      cmd += " -h"
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      erb :index, locals: { out: out }
+  else
+    cmd += " -j"
+    out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+    json = JSON.parse(out)[0]
+    t = OpenStruct.new
+    tags.each do |tag|
+      t.send("#{tag}=", json[tag])
     end
-    format.json do
-      cmd += " -j"
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      out
-    end
-    format.on("*/*") do
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      out
-    end
+    ERB.new(template).result(binding)
   end
 end
