@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+    <head>
+        <title>ExifTool API</title>
+    </head>
+    <body>
+        <h1><a href="/">ExifTool API</a></h1>
+        <form method="post" action="/" accept="image/*" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <input type="submit">
+        </form>
+        <% unless out.nil? %>
+        <%= out %>
+        <% end %>
+    </body>
+</html>
