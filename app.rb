@@ -45,7 +45,9 @@ end
 post "/" do
   tags = params[:tags].to_s.split(",").map(&:strip).select{ _1.match?(/\A\w*\Z/) }
   tags_args = tags.map{ "-#{_1}" }.join(" ")
-  stdin_data = params[:file][:tempfile].read
+  file = params.dig(:file, :tempfile)
+  redirect to("/") if file.nil?
+  stdin_data = file.read
   cmd = "#{settings.exiftool} -s #{tags_args} -"
 
   respond_to do |format|
