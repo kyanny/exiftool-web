@@ -4,6 +4,16 @@ require "sinatra"
 require "sinatra/respond_with"
 require "open3"
 
+configure do
+  set(:exiftool) do
+    json = File.read("Image-ExifTool.json")
+    data = JSON.parse(json)
+    dist_path = data["release"]
+    absolute_path = File.expand_path(dist_path)
+    File.join(absolute_path, "exiftool")
+  end
+end
+
 get "/" do
   scheme = request.env["rack.url_scheme"]
   host = request.env["HTTP_HOST"]
@@ -33,12 +43,10 @@ USAGE
 end
 
 post "/" do
-  exiftool = "./Image-ExifTool-12.49/exiftool -s"
-  file_path = "-"
   tags = params[:tags].to_s.split(",").map(&:strip).select{ _1.match?(/\A\w*\Z/) }
   tags_args = tags.map{ "-#{_1}" }.join(" ")
   stdin_data = params[:file][:tempfile].read
-  cmd = "#{exiftool} #{tags_args} #{file_path}"
+  cmd = "#{settings.exiftool} -s #{tags_args} -"
 
   respond_to do |format|
     format.on("*/*") do
