@@ -10,13 +10,13 @@ before do
   @release = dist_path = data["release"]
   absolute_path = File.expand_path(dist_path)
   @exiftool = File.join(absolute_path, "exiftool")
-end
-
-get "/" do
   scheme = request.env["rack.url_scheme"]
   host = request.env["HTTP_HOST"]
   path = request.env["REQUEST_PATH"]
   @url = "#{scheme}://#{host}#{path}"
+end
+
+get "/" do
   usage = <<USAGE
 Usage:
   curl -H Accept:application/json #{@url} -F file=@/path/to/image.jpg
