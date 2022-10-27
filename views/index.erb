@@ -12,14 +12,20 @@
         </style>
     </head>
     <body>
-        <h1><a href="/">ExifTool on the Web</a></h1>
-        <p>Try <code>curl -H Accept:application/json <%= url %></code> for JSON API.</p>
+        <h1>
+            <a href="https://exiftool.org/">ExifTool</a> on the Web
+            <a href="https://github.com/kyanny/exiftool-web"><img src="https://badgen.net/badge/kyanny/exiftool-web/black?icon=github" alt="github.com/kyanny/exiftool-web"></a>
+        </h1>
+        <p>
+            Version: <a href="https://metacpan.org/dist/Image-ExifTool"><%= @release %></a>
+        </p>
+        <p>Try <code>curl -H Accept:application/json <%= @url %></code> for JSON API.</p>
         <form method="post" action="/" accept="image/*" enctype="multipart/form-data">
             <input type="file" name="file">
             <input type="submit">
         </form>
-        <% unless out.nil? %>
-        <%= out %>
+        <% unless @out.nil? %>
+        <%= @out %>
         <% end %>
     </body>
 </html>

@@ -4,31 +4,29 @@ require "sinatra"
 require "sinatra/respond_with"
 require "open3"
 
-configure do
-  set(:exiftool) do
-    json = File.read("Image-ExifTool.json")
-    data = JSON.parse(json)
-    dist_path = data["release"]
-    absolute_path = File.expand_path(dist_path)
-    File.join(absolute_path, "exiftool")
-  end
+before do
+  json = File.read("Image-ExifTool.json")
+  data = JSON.parse(json)
+  @release = dist_path = data["release"]
+  absolute_path = File.expand_path(dist_path)
+  @exiftool = File.join(absolute_path, "exiftool")
 end
 
 get "/" do
   scheme = request.env["rack.url_scheme"]
   host = request.env["HTTP_HOST"]
   path = request.env["REQUEST_PATH"]
-  url = "#{scheme}://#{host}#{path}"
+  @url = "#{scheme}://#{host}#{path}"
   usage = <<USAGE
 Usage:
-  curl -H Accept:application/json #{url} -F file=@/path/to/image.jpg
+  curl -H Accept:application/json #{@url} -F file=@/path/to/image.jpg
 
 Params:
   file: image file data.
   tags: comma-separated ExifTool tag names. See also https://exiftool.org/TagNames/
 
 Example:
-  curl -H Accept:application/json #{url} -F file=@/path/to/image.jpg -F tags="Make,Model,LensID,ISO,FocalLength,ExposureShift,FNumber,ExposureTime"
+  curl -H Accept:application/json #{@url} -F file=@/path/to/image.jpg -F tags="Make,Model,LensID,ISO,FocalLength,ExposureShift,FNumber,ExposureTime"
 
 USAGE
 
@@ -37,7 +35,7 @@ USAGE
       usage
     end
     format.html do
-      erb :index, locals: { out: nil, url: url }
+      erb :index
     end
   end
 end
@@ -48,18 +46,18 @@ post "/" do
   file = params.dig(:file, :tempfile)
   redirect to("/") if file.nil?
   stdin_data = file.read
-  cmd = "#{settings.exiftool} -s #{tags_args} -"
+  cmd = "#{@exiftool} -s #{tags_args} -"
 
   respond_to do |format|
     format.on("*/*") do
       cmd += " -j"
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      out
+      @out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+      @out
     end
     format.html do
       cmd += " -h"
-      out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
-      erb :index, locals: { out: out }
+      @out, _ = Open3.capture2(cmd, stdin_data: stdin_data)
+      erb :index
     end
   end
 end
